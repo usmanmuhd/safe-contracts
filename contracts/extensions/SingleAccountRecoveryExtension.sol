@@ -7,6 +7,10 @@ import "../GnosisSafe.sol";
 /// @author Richard Meissner - <richard@gnosis.pm>
 contract SingleAccountRecoveryExtension is Extension {
 
+    event RecoveryStarted(address oldOwner, address newOwner);
+    event RecoveryCanceled(address oldOwner, address newOwner);
+    event RecoveryCompleted(address oldOwner, address newOwner);
+
     string public constant NAME = "Single Account Recovery Extension";
     string public constant VERSION = "0.0.1";
     bytes4 public constant REPLACE_OWNER_FUNCTION_IDENTIFIER = hex"54e99c6e";
@@ -77,6 +81,7 @@ contract SingleAccountRecoveryExtension is Extension {
         ownerToReplaceIndex = _oldOwnerIndex;
         ownerToReplaceAddress = _oldOwner;
         newOwnerAddress = _newOwner;
+        RecoveryStarted(_oldOwner, _newOwner);
     }
 
     /// @dev Cancels the recovery process
@@ -89,6 +94,7 @@ contract SingleAccountRecoveryExtension is Extension {
         require(triggerTime > 0);
         require(recoverer == ecrecover(getDataHash(ACTION_CANCEL_RECOVERY, nonce, ownerToReplaceIndex, ownerToReplaceAddress, newOwnerAddress), v, r, s));
         nonce += 1;
+        RecoveryCanceled(ownerToReplaceAddress, newOwnerAddress);
         triggerTime = 0;
         ownerToReplaceIndex = 0;
         ownerToReplaceAddress = address(0);
@@ -102,6 +108,7 @@ contract SingleAccountRecoveryExtension is Extension {
     {
         require(triggerTime > 0 && (triggerTime + timeout * 1 seconds) <= now);
         require(keccak256(uint8(ACTION_COMPLETE_RECOVERY), nonce, data) == getDataHash(ACTION_COMPLETE_RECOVERY, nonce, ownerToReplaceIndex, ownerToReplaceAddress, newOwnerAddress));
+        RecoveryCompleted(ownerToReplaceAddress, newOwnerAddress);
         triggerTime = 0;
         ownerToReplaceIndex = 0;
         ownerToReplaceAddress = address(0);
@@ -126,15 +133,16 @@ contract SingleAccountRecoveryExtension is Extension {
 
     /// @dev Returns hash of data encoding owner replacement.
     /// @param action integer indicating the action. This is used to avoid possible reuse of the hash for different actions
+    /// @param _nonce of the extension
     /// @param oldOwnerIndex index of the owner that should be replaced
     /// @param oldOwner address of the owner that should be replaced
     /// @param newOwner address of the new owner
     /// @return Data hash.
-    function getDataHash(uint8 action, uint nonce, uint256 oldOwnerIndex, address oldOwner, address newOwner)
+    function getDataHash(uint8 action, uint _nonce, uint256 oldOwnerIndex, address oldOwner, address newOwner)
         public
         view
         returns (bytes32)
     {
-        return keccak256(action, nonce, REPLACE_OWNER_FUNCTION_IDENTIFIER, bytes32(oldOwnerIndex), bytes32(oldOwner), bytes32(newOwner));
+        return keccak256(action, _nonce, REPLACE_OWNER_FUNCTION_IDENTIFIER, bytes32(oldOwnerIndex), bytes32(oldOwner), bytes32(newOwner));
     }
 }
