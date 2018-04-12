@@ -19,6 +19,7 @@ contract SingleAccountRecoveryExtension is Extension {
     uint64 public timeout;
     address public recoverer;
 
+    uint public nonce;
     uint public triggerTime;
     uint public ownerToReplaceIndex;
     address public ownerToReplaceAddress;
@@ -70,7 +71,8 @@ contract SingleAccountRecoveryExtension is Extension {
         public
     {
         require(triggerTime == 0);
-        require(recoverer == ecrecover(getDataHash(ACTION_TRIGGER_RECOVERY, _oldOwnerIndex, _oldOwner, _newOwner), v, r, s));
+        require(recoverer == ecrecover(getDataHash(ACTION_TRIGGER_RECOVERY, nonce, _oldOwnerIndex, _oldOwner, _newOwner), v, r, s));
+        nonce += 1;
         triggerTime = now;
         ownerToReplaceIndex = _oldOwnerIndex;
         ownerToReplaceAddress = _oldOwner;
@@ -85,7 +87,8 @@ contract SingleAccountRecoveryExtension is Extension {
         public
     {
         require(triggerTime > 0);
-        require(recoverer == ecrecover(getDataHash(ACTION_CANCEL_RECOVERY, ownerToReplaceIndex, ownerToReplaceAddress, newOwnerAddress), v, r, s));
+        require(recoverer == ecrecover(getDataHash(ACTION_CANCEL_RECOVERY, nonce, ownerToReplaceIndex, ownerToReplaceAddress, newOwnerAddress), v, r, s));
+        nonce += 1;
         triggerTime = 0;
         ownerToReplaceIndex = 0;
         ownerToReplaceAddress = address(0);
@@ -98,7 +101,7 @@ contract SingleAccountRecoveryExtension is Extension {
         public
     {
         require(triggerTime > 0 && (triggerTime + timeout * 1 seconds) <= now);
-        require(keccak256(uint8(ACTION_COMPLETE_RECOVERY), data) == getDataHash(ACTION_COMPLETE_RECOVERY, ownerToReplaceIndex, ownerToReplaceAddress, newOwnerAddress));
+        require(keccak256(uint8(ACTION_COMPLETE_RECOVERY), nonce, data) == getDataHash(ACTION_COMPLETE_RECOVERY, nonce, ownerToReplaceIndex, ownerToReplaceAddress, newOwnerAddress));
         triggerTime = 0;
         ownerToReplaceIndex = 0;
         ownerToReplaceAddress = address(0);
@@ -127,11 +130,11 @@ contract SingleAccountRecoveryExtension is Extension {
     /// @param oldOwner address of the owner that should be replaced
     /// @param newOwner address of the new owner
     /// @return Data hash.
-    function getDataHash(uint8 action, uint256 oldOwnerIndex, address oldOwner, address newOwner)
+    function getDataHash(uint8 action, uint nonce, uint256 oldOwnerIndex, address oldOwner, address newOwner)
         public
         view
         returns (bytes32)
     {
-        return keccak256(action, REPLACE_OWNER_FUNCTION_IDENTIFIER, bytes32(oldOwnerIndex), bytes32(oldOwner), bytes32(newOwner));
+        return keccak256(action, nonce, REPLACE_OWNER_FUNCTION_IDENTIFIER, bytes32(oldOwnerIndex), bytes32(oldOwner), bytes32(newOwner));
     }
 }
