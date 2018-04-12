@@ -48,6 +48,7 @@ contract('SingleAccountRecoveryExtension', function(accounts) {
         let extensions = await gnosisSafe.getExtensions()
         recoveryExtension = SingleAccountRecoveryExtension.at(extensions[0])
         assert.equal(await recoveryExtension.gnosisSafe(), gnosisSafe.address)
+        assert.equal(await recoveryExtension.masterCopy(), recoveryExtensionMasterCopy.address)
     })
 
     it('should replace owner after challenge period', async () => {

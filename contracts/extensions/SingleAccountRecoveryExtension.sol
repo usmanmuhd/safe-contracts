@@ -14,7 +14,7 @@ contract SingleAccountRecoveryExtension is Extension {
     uint8 public constant ACTION_TRIGGER_RECOVERY = 1;
     uint8 public constant ACTION_CANCEL_RECOVERY = 8;
 
-    SingleAccountRecoveryExtension masterCopy;
+    SingleAccountRecoveryExtension public masterCopy;
     GnosisSafe public gnosisSafe;
     uint64 public timeout;
     address public recoverer;
