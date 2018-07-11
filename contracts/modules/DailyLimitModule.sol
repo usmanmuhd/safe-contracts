@@ -50,8 +50,10 @@ contract DailyLimitModule is Module {
     function executeDailyLimit(address token, address to, uint256 amount)
         public
     {
-        // Only Safe owners are allowed to execute daily limit transactions.
-        require(OwnerManager(manager).isOwner(msg.sender), "Method can only be called by an owner");
+        require(
+            msg.sender == address(manager) || OwnerManager(manager).isOwner(msg.sender), 
+            "Method can only be called by the safe itself or an owner"
+        );
         require(to != 0, "Invalid to address provided");
         require(amount > 0, "Invalid amount provided");
         // Validate that transfer is not exceeding daily limit.

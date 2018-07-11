@@ -1,6 +1,7 @@
 pragma solidity 0.4.24;
 import "./GnosisSafe.sol";
 import "./MasterCopy.sol";
+import "./PayingModule.sol";
 import "./SignatureValidator.sol";
 import "./SecuredTokenTransfer.sol";
 
@@ -65,6 +66,38 @@ contract GnosisSafePersonalEdition is MasterCopy, GnosisSafe, SignatureValidator
                  // solium-disable-next-line security/no-tx-origin
                 require(transferToken(gasToken, tx.origin, amount), "Could not pay gas costs with token");
             }
+        }  
+    }
+
+    function execTransactionAndPaySubmitterViaModule(
+        address to, 
+        uint256 value, 
+        bytes data,
+        Enum.Operation operation,
+        uint256 safeTxGas,
+        uint256 dataGas,
+        uint256 gasPrice,
+        address gasToken,
+        bytes signatures
+    )
+        public
+    {
+        require(modules[to] != address(0), "This method can only be used to interact with modules");
+        uint256 startGas = gasleft();
+        bytes32 txHash = getTransactionHash(to, value, data, Enum.Operation.Call, safeTxGas, dataGas, gasPrice, gasToken, nonce);
+        // Increase nonce, ask module for verification and execute transaction.
+        nonce++;
+        require(PayingModule(to).verify(txHash, signatures), "Module could not validate hash");
+        require(gasleft() >= safeTxGas, "Not enough gas to execute safe transaction");
+        if (!execute(to, value, data, Enum.Operation.Call, safeTxGas)) {
+            emit ExecutionFailed(txHash);
+        }
+
+        // If a payment is necessary then it should be handeled by the module
+        if (gasPrice > 0) {
+            uint256 gasCosts = (startGas - gasleft()) + dataGas;
+            uint256 amount = gasCosts * gasPrice;
+            require(PayingModule(to).pay(gasToken, amount), "Module could not pay transaction");
         }  
     }
 

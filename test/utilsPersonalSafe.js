@@ -21,9 +21,10 @@ let estimateDataGas = function(safe, to, value, data, operation, txGasEstimate, 
     return dataGasEstimate + 32000; // Add aditional gas costs (e.g. base tx costs, transfer costs)
 }
 
-let executeTransaction = async function(lw, safe, subject, accounts, to, value, data, operation, executor, gasToken, fails) {
+let executeTransaction = async function(lw, safe, subject, accounts, to, value, data, operation, executor, gasToken, fails, execFunction) {
     let txFailed = fails || false
     let txGasToken = gasToken || 0
+    let executeFunction = execFunction || safe.execTransactionAndPaySubmitter
 
     // Estimate safe transaction (need to be called with from set to the safe address)
     let txGasEstimate = 0
@@ -51,19 +52,21 @@ let executeTransaction = async function(lw, safe, subject, accounts, to, value, 
     // Confirm transaction with signed messages
     let sigs = utils.signTransaction(lw, accounts, transactionHash)
     
-    let payload = safe.contract.execTransactionAndPaySubmitter.getData(
+    let payload = safe.contract.execTransactionAndPaySubmitterViaModule.getData(
         to, value, data, operation, txGasEstimate, dataGasEstimate, gasPrice, txGasToken, sigs
     )
     console.log("    Data costs: " + utils.estimateDataGasCosts(payload))
 
+    console.log("    Error: " + await utils.getErrorMessage(safe.addresss, 0, payload, null))
+
     // Estimate gas of paying transaction
-    let estimate = await safe.execTransactionAndPaySubmitter.estimateGas(
+    let estimate = await executeFunction.estimateGas(
         to, value, data, operation, txGasEstimate, dataGasEstimate, gasPrice, txGasToken, sigs
     )
 
     // Execute paying transaction
     // We add the txGasEstimate and an additional 10k to the estimate to ensure that there is enough gas for the safe transaction
-    let tx = await safe.execTransactionAndPaySubmitter(
+    let tx = await executeFunction(
         to, value, data, operation, txGasEstimate, dataGasEstimate, gasPrice, txGasToken, sigs, {from: executor, gas: estimate + txGasEstimate + 10000}
     )
     let events = utils.checkTxEvent(tx, 'ExecutionFailed', safe.address, txFailed, subject)
